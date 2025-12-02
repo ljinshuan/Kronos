@@ -1,8 +1,11 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import sys
-sys.path.append("../")
-from model import Kronos, KronosTokenizer, KronosPredictor
+import os
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from model import Kronos, KronosPredictor, KronosTokenizer
 
 
 def plot_prediction(kline_df, pred_df):
@@ -40,13 +43,13 @@ def plot_prediction(kline_df, pred_df):
 
 # 1. Load Model and Tokenizer
 tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
-model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
+model = Kronos.from_pretrained("NeoQuasar/Kronos-base")
 
 # 2. Instantiate Predictor
-predictor = KronosPredictor(model, tokenizer, device="cuda:0", max_context=512)
+predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=512)
 
 # 3. Prepare Data
-df = pd.read_csv("./data/XSHG_5min_600977.csv")
+df = pd.read_csv("./examples/data/XSHG_5min_600977.csv")
 df['timestamps'] = pd.to_datetime(df['timestamps'])
 
 lookback = 400
@@ -77,4 +80,8 @@ kline_df = df.loc[:lookback+pred_len-1]
 
 # visualize
 plot_prediction(kline_df, pred_df)
+
+
+
+
 
