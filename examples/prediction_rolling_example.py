@@ -63,14 +63,15 @@ def rolling_prediction(predictor, df, lookback, total_pred_len, T=1.0, top_p=0.9
     
     # 初始化上下文窗口
     context_window = df.iloc[:lookback].copy()
-    context_timestamps = df.loc[:lookback-1, 'timestamps']
-    
+    context_timestamps = df.iloc[:lookback]['timestamps']
+    right_pred_count=0
     print("开始滚动预测...")
     for i in range(total_pred_len):
         # 准备下一个预测的时间戳（使用实际时间戳）
-        next_timestamp = pd.Series([df.loc[lookback + i, 'timestamps']], name='timestamps')
+        next_timestamp = pd.Series([df.iloc[lookback + i]['timestamps']], name='timestamps')
         next_timestamp = pd.to_datetime(next_timestamp)
-        
+        #当前收盘
+        current_close=context_window.iloc[-1]['close']
         # 每次只预测1个数据点
         pred_df = predictor.predict(
             df=context_window[['open', 'high', 'low', 'close', 'volume', 'amount']],
@@ -85,24 +86,28 @@ def rolling_prediction(predictor, df, lookback, total_pred_len, T=1.0, top_p=0.9
         
         # 保存预测结果
         all_preds.append(pred_df.iloc[0])
-        
+        #预测收盘
+        pred_colse=pred_df.iloc[0]['close']
         # 使用真实值更新上下文窗口（而不是预测值）
         # 获取下一个实际数据点
         actual_next_point = df.iloc[lookback + i].copy()
-        
+        actual_close=actual_next_point['close']
         # 将实际值添加到上下文窗口
         context_window = pd.concat([context_window.iloc[1:], pd.DataFrame([actual_next_point])])
         
         # 更新时间戳
         context_timestamps = pd.concat([context_timestamps.iloc[1:], next_timestamp])
-        
+        # 计算涨跌方向：预测 vs 真实
+        pred_return = 1 if pred_colse > current_close else -1
+        actual_return = 1 if actual_close > current_close else -1
+        direction_match = (pred_return == actual_return)
+        right_pred_count+=1 if direction_match else 0
         if verbose and i % 10 == 0:
             print(f"已完成 {i+1}/{total_pred_len} 步预测")
-    
     # 将所有预测结果合并为一个DataFrame
     pred_df = pd.DataFrame(all_preds)
     pred_df.index = df.loc[lookback:lookback + total_pred_len - 1, 'timestamps']
-    
+    print(f"预测准确率: {right_pred_count/total_pred_len:.4f}")
     return pred_df
 
 
