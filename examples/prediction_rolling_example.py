@@ -80,6 +80,7 @@ def rolling_prediction(
     context_timestamps = df.iloc[:lookback]["timestamps"]
     right_pred_count = 0
     print("开始滚动预测...")
+    pred_diff_percert = []
     for i in range(total_pred_len):
         next_timestamp = pd.Series(
             df.iloc[lookback + i : lookback + i + 2]["timestamps"],
@@ -120,12 +121,16 @@ def rolling_prediction(
         actual_return = 1 if actual_close > current_close else -1
         direction_match = pred_return == actual_return
         right_pred_count += 1 if direction_match else 0
+        pred_diff_percert.append(abs(pred_colse - actual_close) / actual_close)
         if verbose and i % 10 == 0:
             print(f"已完成 {i + 1}/{total_pred_len} 步预测")
     # 将所有预测结果合并为一个DataFrame
     pred_df = pd.DataFrame(all_preds)
     pred_df.index = df.loc[lookback : lookback + total_pred_len - 1, "timestamps"]
     print(f"预测准确率: {right_pred_count / total_pred_len:.4f}")
+    print(
+        f"预测误差百分比: {np.mean(pred_diff_percert):.4f}  max: {np.max(pred_diff_percert):.4f}  min: {np.min(pred_diff_percert):.4f}"
+    )
     return pred_df
 
 
