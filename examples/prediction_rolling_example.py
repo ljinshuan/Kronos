@@ -113,13 +113,13 @@ def rolling_prediction(predictor, df, lookback, total_pred_len, T=1.0, top_p=0.9
 
 # 1. 加载模型和分词器
 tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
-model = Kronos.from_pretrained("NeoQuasar/Kronos-base")
+model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
 
 # 2. 实例化预测器
 predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=512)
 
 # 3. 准备数据
-df = pd.read_csv("./examples/data/XSHG_5min_600977.csv")
+df = pd.read_csv("./examples/data/HK_ali_09988_kline_5min_all.csv")
 df['timestamps'] = pd.to_datetime(df['timestamps'])
 
 lookback = 400  # 历史数据长度

@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-sys.path.append('../')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model import Kronos, KronosTokenizer, KronosPredictor
 
 from config_loader import CustomFinetuneConfig
@@ -317,6 +317,7 @@ class SequentialTrainer:
 
 
 def main():
+    
     parser = argparse.ArgumentParser(description='Kronos Model Sequential Fine-tuning Training')
     parser.add_argument('--config', type=str, default='config.yaml', 
                        help='Configuration file path (default: config.yaml)')
