@@ -8,16 +8,17 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model import Kronos, KronosPredictor, KronosTokenizer
 
+
 def plot_prediction(kline_df, pred_df):
-    pred_df.index = kline_df.index[-pred_df.shape[0]:]
-    sr_close = kline_df['close']
-    sr_pred_close = pred_df['close']
-    sr_close.name = 'Ground Truth'
+    pred_df.index = kline_df.index[-pred_df.shape[0] :]
+    sr_close = kline_df["close"]
+    sr_pred_close = pred_df["close"]
+    sr_close.name = "Ground Truth"
     sr_pred_close.name = "Prediction"
 
-    sr_volume = kline_df['volume']
-    sr_pred_volume = pred_df['volume']
-    sr_volume.name = 'Ground Truth'
+    sr_volume = kline_df["volume"]
+    sr_pred_volume = pred_df["volume"]
+    sr_volume.name = "Ground Truth"
     sr_pred_volume.name = "Prediction"
 
     close_df = pd.concat([sr_close, sr_pred_close], axis=1)
@@ -25,26 +26,39 @@ def plot_prediction(kline_df, pred_df):
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
-    ax1.plot(close_df['Ground Truth'], label='Ground Truth', color='blue', linewidth=1.5)
-    ax1.plot(close_df['Prediction'], label='Prediction', color='red', linewidth=1.5)
-    ax1.set_ylabel('Close Price', fontsize=14)
-    ax1.legend(loc='lower left', fontsize=12)
+    ax1.plot(
+        close_df["Ground Truth"], label="Ground Truth", color="blue", linewidth=1.5
+    )
+    ax1.plot(close_df["Prediction"], label="Prediction", color="red", linewidth=1.5)
+    ax1.set_ylabel("Close Price", fontsize=14)
+    ax1.legend(loc="lower left", fontsize=12)
     ax1.grid(True)
 
-    ax2.plot(volume_df['Ground Truth'], label='Ground Truth', color='blue', linewidth=1.5)
-    ax2.plot(volume_df['Prediction'], label='Prediction', color='red', linewidth=1.5)
-    ax2.set_ylabel('Volume', fontsize=14)
-    ax2.legend(loc='upper left', fontsize=12)
+    ax2.plot(
+        volume_df["Ground Truth"], label="Ground Truth", color="blue", linewidth=1.5
+    )
+    ax2.plot(volume_df["Prediction"], label="Prediction", color="red", linewidth=1.5)
+    ax2.set_ylabel("Volume", fontsize=14)
+    ax2.legend(loc="upper left", fontsize=12)
     ax2.grid(True)
 
     plt.tight_layout()
     plt.show()
 
 
-def rolling_prediction(predictor, df, lookback, total_pred_len, T=1.0, top_p=0.9, sample_count=1, verbose=True):
+def rolling_prediction(
+    predictor,
+    df,
+    lookback,
+    total_pred_len,
+    T=1.0,
+    top_p=0.9,
+    sample_count=1,
+    verbose=True,
+):
     """
     实现滚动预测，每次预测1个数据点，然后使用真实值更新输入上下文。
-    
+
     Args:
         predictor: KronosPredictor实例
         df: 包含历史数据和实际值的DataFrame
@@ -54,60 +68,64 @@ def rolling_prediction(predictor, df, lookback, total_pred_len, T=1.0, top_p=0.9
         top_p: 核采样阈值
         sample_count: 每个预测的样本数量
         verbose: 是否显示详细信息
-        
+
     Returns:
         pd.DataFrame: 包含预测结果的DataFrame
     """
     # 用于存储所有预测结果
     all_preds = []
-    
+
     # 初始化上下文窗口
     context_window = df.iloc[:lookback].copy()
-    context_timestamps = df.iloc[:lookback]['timestamps']
-    right_pred_count=0
+    context_timestamps = df.iloc[:lookback]["timestamps"]
+    right_pred_count = 0
     print("开始滚动预测...")
     for i in range(total_pred_len):
-        # 准备下一个预测的时间戳（使用实际时间戳）
-        next_timestamp = pd.Series([df.iloc[lookback + i]['timestamps']], name='timestamps')
+        next_timestamp = pd.Series(
+            df.iloc[lookback + i : lookback + i + 2]["timestamps"],
+            name="timestamps",
+        )
         next_timestamp = pd.to_datetime(next_timestamp)
-        #当前收盘
-        current_close=context_window.iloc[-1]['close']
+        # 当前收盘
+        current_close = context_window.iloc[-1]["close"]
         # 每次只预测1个数据点
         pred_df = predictor.predict(
-            df=context_window[['open', 'high', 'low', 'close', 'volume', 'amount']],
+            df=context_window[["open", "high", "low", "close", "volume", "amount"]],
             x_timestamp=context_timestamps,
             y_timestamp=next_timestamp,
-            pred_len=1,  # 每次只预测1个数据点
+            pred_len=len(next_timestamp),  # 每次只预测1个数据点
             T=T,
             top_p=top_p,
             sample_count=sample_count,
-            verbose=verbose and i % 10 == 0  # 每10步打印一次进度
+            verbose=verbose and i % 10 == 0,  # 每10步打印一次进度
         )
-        
+
         # 保存预测结果
         all_preds.append(pred_df.iloc[0])
-        #预测收盘
-        pred_colse=pred_df.iloc[0]['close']
+        # 预测收盘
+        pred_colse = pred_df.iloc[0]["close"]
         # 使用真实值更新上下文窗口（而不是预测值）
         # 获取下一个实际数据点
         actual_next_point = df.iloc[lookback + i].copy()
-        actual_close=actual_next_point['close']
+        actual_close = actual_next_point["close"]
         # 将实际值添加到上下文窗口
-        context_window = pd.concat([context_window.iloc[1:], pd.DataFrame([actual_next_point])])
-        
+        context_window = pd.concat(
+            [context_window.iloc[1:], pd.DataFrame([actual_next_point])]
+        )
+
         # 更新时间戳
         context_timestamps = pd.concat([context_timestamps.iloc[1:], next_timestamp])
         # 计算涨跌方向：预测 vs 真实
         pred_return = 1 if pred_colse > current_close else -1
         actual_return = 1 if actual_close > current_close else -1
-        direction_match = (pred_return == actual_return)
-        right_pred_count+=1 if direction_match else 0
+        direction_match = pred_return == actual_return
+        right_pred_count += 1 if direction_match else 0
         if verbose and i % 10 == 0:
-            print(f"已完成 {i+1}/{total_pred_len} 步预测")
+            print(f"已完成 {i + 1}/{total_pred_len} 步预测")
     # 将所有预测结果合并为一个DataFrame
     pred_df = pd.DataFrame(all_preds)
-    pred_df.index = df.loc[lookback:lookback + total_pred_len - 1, 'timestamps']
-    print(f"预测准确率: {right_pred_count/total_pred_len:.4f}")
+    pred_df.index = df.loc[lookback : lookback + total_pred_len - 1, "timestamps"]
+    print(f"预测准确率: {right_pred_count / total_pred_len:.4f}")
     return pred_df
 
 
@@ -120,7 +138,7 @@ predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=512)
 
 # 3. 准备数据
 df = pd.read_csv("./examples/data/HK_ali_09988_kline_5min_all.csv")
-df['timestamps'] = pd.to_datetime(df['timestamps'])
+df["timestamps"] = pd.to_datetime(df["timestamps"])
 
 lookback = 400  # 历史数据长度
 total_pred_len = 120  # 总共预测120个数据点
@@ -131,10 +149,10 @@ pred_df = rolling_prediction(
     df=df,
     lookback=lookback,
     total_pred_len=total_pred_len,
-    T=1.0,
+    T=1,
     top_p=0.9,
-    sample_count=1,
-    verbose=True
+    sample_count=3,
+    verbose=True,
 )
 
 # 5. 可视化结果
@@ -142,7 +160,7 @@ print("\n预测数据头部:")
 print(pred_df.head())
 
 # 合并历史数据和预测结果用于绘图
-kline_df = df.loc[:lookback + total_pred_len - 1]
+# kline_df = df.loc[:lookback + total_pred_len - 1]
 
 # 可视化
-plot_prediction(kline_df, pred_df)
+# plot_prediction(kline_df, pred_df)
