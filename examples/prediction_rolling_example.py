@@ -79,11 +79,12 @@ def rolling_prediction(
     context_window = df.iloc[:lookback].copy()
     context_timestamps = df.iloc[:lookback]["timestamps"]
     right_pred_count = 0
+    right_pred_count_v2 = 0
     print("开始滚动预测...")
     pred_diff_percert = []
     for i in range(total_pred_len):
         next_timestamp = pd.Series(
-            df.iloc[lookback + i : lookback + i + 2]["timestamps"],
+            df.iloc[lookback + i : lookback + i + 10]["timestamps"],
             name="timestamps",
         )
         next_timestamp = pd.to_datetime(next_timestamp)
@@ -105,10 +106,12 @@ def rolling_prediction(
         all_preds.append(pred_df.iloc[0])
         # 预测收盘
         pred_colse = pred_df.iloc[0]["close"]
+        pred_close_v2=pred_df["close"].mean()
         # 使用真实值更新上下文窗口（而不是预测值）
         # 获取下一个实际数据点
         actual_next_point = df.iloc[lookback + i].copy()
         actual_close = actual_next_point["close"]
+        actual_close_v2 = df.iloc[lookback + i : lookback + i + 10]["close"].mean()
         # 将实际值添加到上下文窗口
         context_window = pd.concat(
             [context_window.iloc[1:], pd.DataFrame([actual_next_point])]
@@ -118,9 +121,16 @@ def rolling_prediction(
         context_timestamps = pd.concat([context_timestamps.iloc[1:], next_timestamp])
         # 计算涨跌方向：预测 vs 真实
         pred_return = 1 if pred_colse > current_close else -1
+        pred_return_v2 = 1 if pred_close_v2 > current_close else -1
         actual_return = 1 if actual_close > current_close else -1
+        actual_return_v2 = 1 if actual_close_v2 > current_close else -1
+
         direction_match = pred_return == actual_return
         right_pred_count += 1 if direction_match else 0
+        
+        direction_match_v2 = pred_return_v2 == actual_return_v2
+        right_pred_count_v2 += 1 if direction_match_v2 else 0
+
         pred_diff_percert.append(abs(pred_colse - actual_close) / actual_close)
         if verbose and i % 10 == 0:
             print(f"已完成 {i + 1}/{total_pred_len} 步预测")
@@ -128,6 +138,8 @@ def rolling_prediction(
     pred_df = pd.DataFrame(all_preds)
     pred_df.index = df.loc[lookback : lookback + total_pred_len - 1, "timestamps"]
     print(f"预测准确率: {right_pred_count / total_pred_len:.4f}")
+    
+    print(f"预测准确率_v2: {right_pred_count_v2 / total_pred_len:.4f}")
     print(
         f"预测误差百分比: {np.mean(pred_diff_percert):.4f}  max: {np.max(pred_diff_percert):.4f}  min: {np.min(pred_diff_percert):.4f}"
     )
@@ -156,7 +168,7 @@ pred_df = rolling_prediction(
     total_pred_len=total_pred_len,
     T=1,
     top_p=0.9,
-    sample_count=3,
+    sample_count=1,
     verbose=True,
 )
 
