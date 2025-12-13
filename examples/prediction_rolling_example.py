@@ -74,17 +74,17 @@ def rolling_prediction(
     """
     # 用于存储所有预测结果
     all_preds = []
-
+    pred_closes = []
+    actual_closes = []
     # 初始化上下文窗口
     context_window = df.iloc[:lookback].copy()
     context_timestamps = df.iloc[:lookback]["timestamps"]
     right_pred_count = 0
-    right_pred_count_v2 = 0
     print("开始滚动预测...")
-    pred_diff_percert = []
+
     for i in range(total_pred_len):
         next_timestamp = pd.Series(
-            df.iloc[lookback + i : lookback + i + 10]["timestamps"],
+            df.iloc[lookback + i : lookback + i + 1]["timestamps"],
             name="timestamps",
         )
         next_timestamp = pd.to_datetime(next_timestamp)
@@ -106,12 +106,10 @@ def rolling_prediction(
         all_preds.append(pred_df.iloc[0])
         # 预测收盘
         pred_colse = pred_df.iloc[0]["close"]
-        pred_close_v2=pred_df["close"].mean()
         # 使用真实值更新上下文窗口（而不是预测值）
         # 获取下一个实际数据点
         actual_next_point = df.iloc[lookback + i].copy()
         actual_close = actual_next_point["close"]
-        actual_close_v2 = df.iloc[lookback + i : lookback + i + 10]["close"].mean()
         # 将实际值添加到上下文窗口
         context_window = pd.concat(
             [context_window.iloc[1:], pd.DataFrame([actual_next_point])]
@@ -121,28 +119,22 @@ def rolling_prediction(
         context_timestamps = pd.concat([context_timestamps.iloc[1:], next_timestamp])
         # 计算涨跌方向：预测 vs 真实
         pred_return = 1 if pred_colse > current_close else -1
-        pred_return_v2 = 1 if pred_close_v2 > current_close else -1
         actual_return = 1 if actual_close > current_close else -1
-        actual_return_v2 = 1 if actual_close_v2 > current_close else -1
 
         direction_match = pred_return == actual_return
         right_pred_count += 1 if direction_match else 0
-        
-        direction_match_v2 = pred_return_v2 == actual_return_v2
-        right_pred_count_v2 += 1 if direction_match_v2 else 0
-
-        pred_diff_percert.append(abs(pred_colse - actual_close) / actual_close)
+        pred_closes.append(pred_colse)
+        actual_closes.append(actual_close)
         if verbose and i % 10 == 0:
             print(f"已完成 {i + 1}/{total_pred_len} 步预测")
     # 将所有预测结果合并为一个DataFrame
     pred_df = pd.DataFrame(all_preds)
     pred_df.index = df.loc[lookback : lookback + total_pred_len - 1, "timestamps"]
-    print(f"预测准确率: {right_pred_count / total_pred_len:.4f}")
-    
-    print(f"预测准确率_v2: {right_pred_count_v2 / total_pred_len:.4f}")
-    print(
-        f"预测误差百分比: {np.mean(pred_diff_percert):.4f}  max: {np.max(pred_diff_percert):.4f}  min: {np.min(pred_diff_percert):.4f}"
-    )
+    # 计算均方误差
+    mse_close = np.sqrt(np.mean((np.array(pred_closes) - np.array(actual_closes)) ** 2))
+    print(f"Close 均方误差: {mse_close:.4f}")
+    print(f"趋势预测准确率: {right_pred_count / total_pred_len:.4f}")
+
     return pred_df
 
 
