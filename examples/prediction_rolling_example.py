@@ -143,7 +143,7 @@ tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
 model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
 
 # 2. 实例化预测器
-predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=512)
+predictor = KronosPredictor(model, tokenizer, device="cuda", max_context=512)
 
 # 3. 准备数据
 df = pd.read_csv("./examples/data/HK_ali_09988_kline_5min_all.csv")
