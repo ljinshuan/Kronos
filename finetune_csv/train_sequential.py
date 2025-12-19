@@ -317,6 +317,7 @@ class SequentialTrainer:
 
 
 def main():
+    
     parser = argparse.ArgumentParser(description='Kronos Model Sequential Fine-tuning Training')
     parser.add_argument('--config', type=str, default='config.yaml', 
                        help='Configuration file path (default: config.yaml)')
