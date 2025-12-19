@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-sys.path.append('../')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model import Kronos, KronosTokenizer, KronosPredictor
 
 from config_loader import CustomFinetuneConfig
@@ -17,7 +17,7 @@ from finetune_base_model import train_model, create_dataloaders, setup_logging a
 
 class SequentialTrainer:
     
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: str = None): # pyright: ignore[reportArgumentType]
         self.config = CustomFinetuneConfig(config_path)
         self.rank = int(os.environ.get("RANK", "0"))
         self.world_size = int(os.environ.get("WORLD_SIZE", "1"))
@@ -82,7 +82,7 @@ class SequentialTrainer:
             logger.info("Loading pretrained tokenizer...")
             if self.rank == 0:
                 print("Loading pretrained tokenizer...")
-            tokenizer = KronosTokenizer.from_pretrained(self.config.pretrained_tokenizer_path)
+            tokenizer = KronosTokenizer.from_pretrained(self.config.pretrained_tokenizer_path) # type: ignore
         else:
             if self.rank == 0:
                 print("pre_trained_tokenizer=False, randomly initializing Tokenizer architecture")
