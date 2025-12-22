@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import torch
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -132,25 +133,38 @@ def rolling_prediction(
     pred_df.index = df.loc[lookback : lookback + total_pred_len - 1, "timestamps"]
     # 计算均方误差
     mse_close = np.sqrt(np.mean((np.array(pred_closes) - np.array(actual_closes)) ** 2))
-    print(f"Close 均方误差: {mse_close:.4f}")
+    mae = np.mean(np.abs(np.array(pred_closes) - np.array(actual_closes)))
+    mape = np.mean(np.abs((np.array(actual_closes) - np.array(pred_closes)) / np.array(actual_closes))) * 100  # 单位：%
+    print(f"Close 均方根误差: {mse_close:.4f}")
+    print(f"Close 平均绝对误差: {mae:.4f}")
+    print(f"Close 平均绝对百分比误差: {mape:.4f}%")
     print(f"趋势预测准确率: {right_pred_count / total_pred_len:.4f}")
 
     return pred_df
 
 
 # 1. 加载模型和分词器
-tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
-model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
+# 使用绝对路径加载本地模型
+tokenizer_path = os.path.abspath("./finetune_csv/finetuned/HK_ali_09988_kline_5min_fmt/tokenizer/best_model/")
+model_path = os.path.abspath("./finetune_csv/finetuned/HK_ali_09988_kline_5min_fmt/basemodel/best_model/")
+
+
+#tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
+#model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
+
+tokenizer = KronosTokenizer.from_pretrained(tokenizer_path)
+model = Kronos.from_pretrained(model_path)
 
 # 2. 实例化预测器
-predictor = KronosPredictor(model, tokenizer, device="cuda", max_context=512)
+device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+predictor = KronosPredictor(model, tokenizer, device=device, max_context=512)
 
 # 3. 准备数据
-df = pd.read_csv("./examples/data/HK_ali_09988_kline_5min_all.csv")
+df = pd.read_csv("./examples/data/9988.HK_5m_test_fmt.csv")
 df["timestamps"] = pd.to_datetime(df["timestamps"])
 
 lookback = 400  # 历史数据长度
-total_pred_len = 120  # 总共预测120个数据点
+total_pred_len =120  # 总共预测120个数据点
 
 # 4. 执行滚动预测
 pred_df = rolling_prediction(
@@ -169,7 +183,7 @@ print("\n预测数据头部:")
 print(pred_df.head())
 
 # 合并历史数据和预测结果用于绘图
-# kline_df = df.loc[:lookback + total_pred_len - 1]
+kline_df = df.loc[:lookback + total_pred_len - 1]
 
 # 可视化
-# plot_prediction(kline_df, pred_df)
+plot_prediction(kline_df, pred_df)
